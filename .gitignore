@@ -1,0 +1,7 @@
+data/
+
+.vscode/
+*.session.sql
+
+Thumbs.db
+desktop.ini
