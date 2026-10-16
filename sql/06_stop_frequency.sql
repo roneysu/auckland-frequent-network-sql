@@ -50,6 +50,7 @@ LIMIT 10;
 
 
 -- Which stations are classified as "high-frequency" stations, yet none of the transit lines passing through them meet the individual compliance criteria for Phase 4? --
+DROP VIEW IF EXISTS route_stop;
 
 CREATE VIEW route_stop AS
 WITH high_freqweek AS(
@@ -70,3 +71,25 @@ GROUP BY rs.stop_id
 HAVING SUM(vga.frequency_check = 'OK') = 0
 LIMIT 10;
 
+-- Are there any stations that serve as a stop for routes meeting the "high-frequency" criteria, yet the station itself is not classified as a high-frequency station? --
+DROP VIEW IF EXISTS high_route;
+
+CREATE VIEW high_route AS
+WITH get_stop AS(
+    SELECT DISTINCT td6.stop_id,td6.route_id,td6.date
+    FROM trip_stop_departures_6 td6
+    JOIN analysis_days ad ON td6.date = ad.date
+    WHERE ad.day_type = 'Weekday' AND td6.departure_time < '19:00:00' AND td6.departure_time >= '07:00:00'
+)
+SELECT vga.route_id, gs.stop_id, vga.date
+FROM get_stop gs
+JOIN v_route_gap_a vga ON vga.route_id = gs.route_id AND vga.date = gs.date
+WHERE frequency_check = 'OK' ;
+
+SELECT COUNT(DISTINCT hr.stop_id)
+FROM high_route hr
+WHERE NOT EXISTS(
+    SELECT 1
+    FROM v_stop_gap vsg
+    WHERE vsg.stop_id = hr.stop_id AND vsg.date = hr.date AND vsg.frequency_check = 'OK'
+);
